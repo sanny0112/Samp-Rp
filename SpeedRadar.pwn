@@ -14,9 +14,6 @@
 // 2 - отсутствие страниц в диалогах с нарушителями и штрафами => возможно переполнение.
 // Остальные элементы ТЗ были выполнены в полном объёме.
 
-
-#define SPEEDRADAR_MAX_DIALOG_INDEX 32
-
 // ===========[ Radar FORWARDS ]===========
 forward RadarInstall(playerid);
 forward CameraPlace(playerid);
