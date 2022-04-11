@@ -5,14 +5,14 @@
 #include <streamer>
 
 // updateRadarAuthorName(oldName[MAX_PLAYER_NAME+1], nextName[MAX_PLAYER_NAME+1])
-//                              - Âûçâàòü ïðè ñìåíå èãðîêîì íèêà. Îáíîâëÿåò åãî øòðàôû è ìåíÿåò àâòîðñòâî â óñòàíîâëåííûõ ðàäàðàõ
-// ResetAllSpeedRadar() 		- Ïîëíûé ñáðîñ ðàäàðîâ (âêëþ÷àÿ ìàïïèíã) è óäàëåíèå âñåõ øòðàôîâ
-// SpeedRadarTicketsPayDay()    - Âûçâàòü ïðè PayDay. Ïåðåíîñèò øòðàôû èç "çà ïîñëåäíèé ÷àñ" â "çà òåêóùèå ñóòêè"
+//                              - Вызвать при смене игроком ника. Обновляет его штрафы и меняет авторство в установленных радарах
+// ResetAllSpeedRadar() 		- Полный сброс радаров (включая маппинг) и удаление всех штрафов
+// SpeedRadarTicketsPayDay()    - Вызвать при PayDay. Переносит штрафы из "за последний час" в "за текущие сутки"
 
-// Ïðèñóòñòâóþò 2 áàãà, íà èñïðàâëåíèå êîòîðûõ íå õâàòèëî âðåìåíè:
-// 1 - ïîâîðîò ìàïïèíãà,
-// 2 - îòñóòñòâèå ñòðàíèö â äèàëîãàõ ñ íàðóøèòåëÿìè è øòðàôàìè => âîçìîæíî ïåðåïîëíåíèå.
-// Îñòàëüíûå ýëåìåíòû ÒÇ áûëè âûïîëíåíû â ïîëíîì îáú¸ìå.
+// Присутствуют 2 бага, на исправление которых не хватило времени:
+// 1 - поворот маппинга,
+// 2 - отсутствие страниц в диалогах с нарушителями и штрафами => возможно переполнение.
+// Остальные элементы ТЗ были выполнены в полном объёме.
 
 
 #define SPEEDRADAR_MAX_DIALOG_INDEX 32
@@ -74,9 +74,9 @@ new NULL_SpeedRadarTickets[srTickets];
 
 static const FractionSkin[3] = {295, 283, 115};
 new Float:SpawnInfo[3][4] = {
-{2202.1167,2478.0464,11.8203,180.0}, // Ãðàæäàíñêèé
+{2202.1167,2478.0464,11.8203,180.0}, // Гражданский
 {2290.6106,2450.9822,10.8203,90.0}, // LVPD
-{2125.8381,2474.2617,11.8203,90.0} // Áàíäèò
+{2125.8381,2474.2617,11.8203,90.0} // Бандит
 };
 
 new const Float:Cites[9][4] = {
@@ -122,10 +122,10 @@ main()
 public OnGameModeInit()
 {
 	SetGameModeText("SpeedRadar");
-	AddStaticVehicle(598,2273.5933,2459.8660,10.5669,181.6427,0,1); // Ïîëèöåéñêèé àâòîìîáèëü
-	AddStaticVehicle(522,2202.1167,2478.0464,10.8203,180.0,1,1); // Ãðàæäàíñêèé NRG
-	AddStaticVehicle(535,2125.8381,2474.2617,10.8203,90.0,15,15); // Áàíäèòñêèé àâòîìîáèëü
-	SetTimer("UpdateSpeedometr", 120, true); // Ñïèäîìåòð
+	AddStaticVehicle(598,2273.5933,2459.8660,10.5669,181.6427,0,1); // Полицейский автомобиль
+	AddStaticVehicle(522,2202.1167,2478.0464,10.8203,180.0,1,1); // Гражданский NRG
+	AddStaticVehicle(535,2125.8381,2474.2617,10.8203,90.0,15,15); // Бандитский автомобиль
+	SetTimer("UpdateSpeedometr", 120, true); // Спидометр
 	return 1;
 }
 
@@ -144,14 +144,14 @@ public OnPlayerRequestClass(playerid, classid)
 
 public OnPlayerConnect(playerid)
 {
-    SendClientMessage(playerid, -1, " Äîáðî ïîæàëîâàòü! Îñíîâíûå êîìàíäû:");
-    SendClientMessage(playerid, -1, " - /sradar [...] - Ðàäàð");
-    SendClientMessage(playerid, -1, " - /leader [id frac] - Ñòàòü ëèäåðîì ôðàêöèè");
-    SendClientMessage(playerid, -1, " - /frac - Âñòóïèòü âî ôðàêöèþ");
-    SendClientMessage(playerid, -1, " - /rank [rank] - Âûäàòü ñåáå ðàíã");
-    SendClientMessage(playerid, -1, " - /r èëè /f - Ðàöèÿ");
-    SendClientMessage(playerid, -1, " - /reset - Îáùèé ñáðîñ ðàäàðà");
-    SendClientMessage(playerid, -1, " - /payday - Âûçâàòü PayDay");
+    SendClientMessage(playerid, -1, " Добро пожаловать! Основные команды:");
+    SendClientMessage(playerid, -1, " - /sradar [...] - Радар");
+    SendClientMessage(playerid, -1, " - /leader [id frac] - Стать лидером фракции");
+    SendClientMessage(playerid, -1, " - /frac - Вступить во фракцию");
+    SendClientMessage(playerid, -1, " - /rank [rank] - Выдать себе ранг");
+    SendClientMessage(playerid, -1, " - /r или /f - Рация");
+    SendClientMessage(playerid, -1, " - /reset - Общий сброс радара");
+    SendClientMessage(playerid, -1, " - /payday - Вызвать PayDay");
     
     PlayerInfo[playerid][pLeader] = 0;
     PlayerInfo[playerid][pMember] = random(3);
@@ -162,7 +162,7 @@ public OnPlayerConnect(playerid)
     // ===============================
     PlayerInfo[playerid][pMoney] = 50000;
     GivePlayerMoney(playerid,PlayerInfo[playerid][pMoney]);
-    // Ñïèäîìåòð
+    // Спидометр
     SpeedShow[playerid] = TextDrawCreate(374.000000, 408.000000, "_");
     TextDrawBackgroundColor(SpeedShow[playerid], 255);
     TextDrawAlignment(SpeedShow[playerid], 2);
@@ -195,7 +195,7 @@ public OnPlayerDisconnect(playerid, reason)
   		if(SpeedRadarInfo[CameraInstallId[playerid]][srIsInstalled2])
 		{
 			new string[128];
-		    format(string,sizeof(string)," [Speed Cam] %s óäàëèë êàìåðó â ðàéîíå %s",GetName(playerid),SpeedRadarInfo[CameraInstallId[playerid]][srLocation]);
+		    format(string,sizeof(string)," [Speed Cam] %s удалил камеру в районе %s",GetName(playerid),SpeedRadarInfo[CameraInstallId[playerid]][srLocation]);
 			SendRadioMessage(getPlayerFraction(playerid), string);
 		}
 	    KillTimer(CameraInstallTimer[playerid]);
@@ -387,7 +387,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 	switch(dialogid)
 	{
 	    // ===========[ Radar ]===========
-		case 1: // Âûáîð ôðàêöèè
+		case 1: // Выбор фракции
 		{
 			if(response == 0)
 			    return 1;
@@ -404,24 +404,24 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     		TogglePlayerSpectating(playerid, false);
     		new string[128];
     		if (PlayerInfo[playerid][pMember] != 0)
-    			format(string,sizeof(string)," Âû ïðèãëàøåíû â %s",GetFractionName(PlayerInfo[playerid][pMember]));
+    			format(string,sizeof(string)," Вы приглашены в %s",GetFractionName(PlayerInfo[playerid][pMember]));
 			else
-			    format(string,sizeof(string)," Âû óâîëåíû èç ôðàêöèè");
+			    format(string,sizeof(string)," Вы уволены из фракции");
     		SendClientMessage(playerid, 0x6ab1ff00, string);
 		}
 		case 2: // /sradar info
 		{
             if(response == 0)
 			    return 1;
-			if(listitem == 0 || listitem == 1) // [0] Íàðóøèòåëè çà ïîñëåäíèé ÷àñ && [1] Íàðóøèòåëè çà òåêóùèå ñóòêè
+			if(listitem == 0 || listitem == 1) // [0] Нарушители за последний час && [1] Нарушители за текущие сутки
 			{
 				static const fmt_str[] = "%s[%i] %s[%i]\t%s\t%i (+%i)\n";
-				new dialog_header[46] = "Èìÿ [ID]\tÀâòîìîáèëü\tÑêîðîñòü\n",
+				new dialog_header[46] = "Имя [ID]\tАвтомобиль\tСкорость\n",
 		  		dialog_title[32],
 			    string[sizeof(dialog_header) + (sizeof(fmt_str) + (-2) + (-2 + 4) + (-2 + MAX_PLAYER_NAME) + (-2 + 19) + (-2 + 32) + (-2 + 3) + (-2 + 2)) * 32],
 			    TicketsCount = 0,
 			    TicketPlayerId,
-				PlayerFrac = getPlayerFraction(playerid), // Ôðàêöèÿ èãðîêà
+				PlayerFrac = getPlayerFraction(playerid), // Фракция игрока
 			    selectPDSlots = 0;
 			    string = dialog_header;
 				if(PlayerFrac == 3)      // id LSPD
@@ -441,22 +441,22 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 				}
 				if(listitem == 0)
-				    dialog_title = "Íàðóøèòåëè çà ïîñëåäíèé ÷àñ";
+				    dialog_title = "Нарушители за последний час";
 				else
-				    dialog_title = "Íàðóøèòåëè çà òåêóùèå ñóòêè";
+				    dialog_title = "Нарушители за текущие сутки";
 				if(TicketsCount > 0)
-				    ShowPlayerDialog(playerid, 3, DIALOG_STYLE_TABLIST_HEADERS, dialog_title, string, "Îê", "Íàçàä");
+				    ShowPlayerDialog(playerid, 3, DIALOG_STYLE_TABLIST_HEADERS, dialog_title, string, "Ок", "Назад");
 			    else
-			        SendClientMessage(playerid, 0xAFAFAF00, " Íàðóøèòåëåé íå îáíàðóæåíî");
+			        SendClientMessage(playerid, 0xAFAFAF00, " Нарушителей не обнаружено");
 				return 1;
 			}
-			else if(listitem == 2) // [2] Àêòèâíûå êàìåðû
+			else if(listitem == 2) // [2] Активные камеры
 			{
 				
 				static const fmt_str[] = "%s[%i] %s\t%i\t%s\n";
-				new dialog_header[39] = "Óñòàíîâèë\tËèìèò\tÍàçâàíèå ìåñòíîñòè\n",
+				new dialog_header[39] = "Установил\tЛимит\tНазвание местности\n",
 			    string[sizeof(dialog_header) + (sizeof(fmt_str) + (-2) + (-2 + 1) + (-2 + MAX_PLAYER_NAME) + (-2 + 3) + (-2 + 64)) * 5],
-				PlayerFrac = getPlayerFraction(playerid), // Ôðàêöèÿ èãðîêà
+				PlayerFrac = getPlayerFraction(playerid), // Фракция игрока
 			    selectPDSlots = 0,
 				CameraNumber=0;
 				if(PlayerFrac == 3)      // id LSPD
@@ -473,9 +473,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 				}
 				if(CameraNumber > 0)
-				    ShowPlayerDialog(playerid, 3, DIALOG_STYLE_TABLIST_HEADERS, "Àêòèâíûå êàìåðû", string, "Îê", "Íàçàä");
+				    ShowPlayerDialog(playerid, 3, DIALOG_STYLE_TABLIST_HEADERS, "Активные камеры", string, "Ок", "Назад");
 			    else
-			        SendClientMessage(playerid, 0xAFAFAF00, " Íè îäíîé êàìåðû íå óñòàíîâëåíî");
+			        SendClientMessage(playerid, 0xAFAFAF00, " Ни одной камеры не установлено");
 				return 1;
 			}
 			
@@ -484,7 +484,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response == 1)
 			    return 1;
-            ShowPlayerDialog(playerid, 2, DIALOG_STYLE_LIST, "Ñêîðîñòíîé ðàäàð", "[0] Íàðóøèòåëè çà ïîñëåäíèé ÷àñ\n[1] Íàðóøèòåëè çà òåêóùèå ñóòêè\n[2] Àêòèâíûå êàìåðû", "Âûáðàòü", "Çàêðûòü");
+            ShowPlayerDialog(playerid, 2, DIALOG_STYLE_LIST, "Скоростной радар", "[0] Нарушители за последний час\n[1] Нарушители за текущие сутки\n[2] Активные камеры", "Выбрать", "Закрыть");
 		}
 		case 4: // Speed Tickets
 		{
@@ -501,9 +501,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			        if(TicketsCount-1 == listitem)
 			        {
 			            TicketAmount = 2000 * ((SpeedRadarTickets[i][srtPlayerSpeed]-SpeedRadarTickets[i][srtSpeedLimit]) / 10);
-			            if(!GiveMoney(playerid, (-TicketAmount))) // Ñïèñàíèå äåíåã
+			            if(!GiveMoney(playerid, (-TicketAmount))) // Списание денег
 			            {
-		  					SendClientMessage(playerid, 0xAFAFAF00, " Íà âàøåì ñ÷åòó íåäîñòàòî÷íî ñðåäñòâ");
+		  					SendClientMessage(playerid, 0xAFAFAF00, " На вашем счету недостаточно средств");
 							return 0;
 			            }
 			            SpeedRadarTickets[i] = NULL_SpeedRadarTickets;
@@ -512,7 +512,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 						    SpeedRadarTickets[j] = SpeedRadarTickets[j+1];
 						}
 	  					srTicketsIndex--;
-	  					format(string, sizeof(string), " Ñ âàøåãî ñ÷¸òà áûëî ñïèñàíî %i âèðò", TicketAmount);
+	  					format(string, sizeof(string), " С вашего счёта было списано %i вирт", TicketAmount);
 	  					SendClientMessage(playerid, -1, string);
 						break;
 			        }
@@ -531,7 +531,7 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	return 1;
 }
 
-// ÊÎÌÀÍÄÛ
+// КОМАНДЫ
 CMD:payday(playerid, parms[])
 {
     SendClientMessage(playerid, -1, " PayDay");
@@ -540,7 +540,7 @@ CMD:payday(playerid, parms[])
 }
 CMD:reset(playerid, parms[])
 {
-    SendClientMessage(playerid, -1, " Ñáðîñ âûïîëíåí");
+    SendClientMessage(playerid, -1, " Сброс выполнен");
     ResetAllSpeedRadar();
 	return 1;
 }
@@ -548,11 +548,11 @@ CMD:r(playerid, params[])
 {
 	new string[128];
 	if (getPlayerFraction(playerid) == 0) {
-		SendClientMessage(playerid, 0xAFAFAF00, " Âàì íåäîñòóïåí ýòîò ÷àò");
+		SendClientMessage(playerid, 0xAFAFAF00, " Вам недоступен этот чат");
 		return 0;
 	}
 	if(sscanf(params, "s[128]", string))
-		return SendClientMessage(playerid, -1, " Ââåäèòå: /r [òåêñò]");
+		return SendClientMessage(playerid, -1, " Введите: /r [текст]");
     format(string,sizeof(string)," [R] %s %s: %s",(PlayerInfo[playerid][pLeader] == 0) ? GetRankName(PlayerInfo[playerid][pMember], PlayerInfo[playerid][pRank]) : GetLeaderName(PlayerInfo[playerid][pLeader]),GetName(playerid),string);
     SendRadioMessage(getPlayerFraction(playerid), string);
     return 1;
@@ -564,13 +564,13 @@ CMD:rank(playerid, params[])
     new string[128];
 	new UserFraction = PlayerInfo[playerid][pMember];
 	if (UserFraction == 0) {
-		SendClientMessage(playerid, 0xAFAFAF00, " Âû íå ñîñòîèòå âî ôðàêöèè");
+		SendClientMessage(playerid, 0xAFAFAF00, " Вы не состоите во фракции");
 		return 0;
 	}
 	if(sscanf(params, "i", rank) || rank <=0)
-		return SendClientMessage(playerid, -1, " Ââåäèòå: /rank [ðàíã]");
+		return SendClientMessage(playerid, -1, " Введите: /rank [ранг]");
 	PlayerInfo[playerid][pRank] = rank;
-    format(string,sizeof(string)," Âû ïîâûøåíû/ïîíèæåíû äî %i ðàíãà",rank);
+    format(string,sizeof(string)," Вы повышены/понижены до %i ранга",rank);
 	SendClientMessage(playerid, 0x6ab1ff00, string);
 	return 1;
 }
@@ -579,7 +579,7 @@ CMD:leader(playerid, params[])
     new frac;
     new string[128];
 	if(sscanf(params, "i", frac) || frac <0)
-		return SendClientMessage(playerid, -1, " Ââåäèòå: /leader [id ôðàêöèè]");
+		return SendClientMessage(playerid, -1, " Введите: /leader [id фракции]");
 	PlayerInfo[playerid][pMember] = 0;
 	PlayerInfo[playerid][pRank] = 0;
 	PlayerInfo[playerid][pLeader] = frac;
@@ -591,7 +591,7 @@ CMD:leader(playerid, params[])
  	ForceClassSelection(playerid);
  	TogglePlayerSpectating(playerid, true);
 	TogglePlayerSpectating(playerid, false);
-    format(string,sizeof(string)," Âû íàçíà÷åíû íà ïîñò ëèäåðà %s",GetFractionName(frac));
+    format(string,sizeof(string)," Вы назначены на пост лидера %s",GetFractionName(frac));
 	SendClientMessage(playerid, 0x6ab1ff00, string);
 	return 1;
 }
@@ -600,12 +600,12 @@ CMD:frac(playerid, params[])
 	new frName[128], string[128];
 	frName = GetFractionName(getPlayerFraction(playerid));
 	if (getPlayerFraction(playerid) != 0)
-		format(string,sizeof(string)," Âû ñîñòîèòå âî ôðàêöèè %s",frName);
+		format(string,sizeof(string)," Вы состоите во фракции %s",frName);
 	else
-	    format(string,sizeof(string)," Âû íå ñîñòîèòå âî ôðàêöèè");
+	    format(string,sizeof(string)," Вы не состоите во фракции");
 	SendClientMessage(playerid, -1, string);
 
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_LIST, "Âûáîð ôðàêöèè", "[0] Ãðàæäàíñêèé\n[2] LVPD\n[3] Áàíäèò", "Âûáðàòü", "Çàêðûòü");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_LIST, "Выбор фракции", "[0] Гражданский\n[2] LVPD\n[3] Бандит", "Выбрать", "Закрыть");
 
 
 	return 1;
@@ -614,8 +614,8 @@ CMD:frac(playerid, params[])
 CMD:sradar(playerid, params[])
 {
     new key[16], LocationName[64],slimitValue,
- 	PlayerFrac = getPlayerFraction(playerid), // Ôðàêöèÿ èãðîêà
- 	AdminLvl = PlayerInfo[playerid][pAdmin], // Îïðåäåëèòü óðîâåíü àäìèíèñòðàòîðà
+ 	PlayerFrac = getPlayerFraction(playerid), // Фракция игрока
+ 	AdminLvl = PlayerInfo[playerid][pAdmin], // Определить уровень администратора
     selectPDSlots = 0;
 	if(PlayerFrac == 3)      // id LSPD
 	    selectPDSlots = 1;
@@ -625,30 +625,30 @@ CMD:sradar(playerid, params[])
 	    selectPDSlots = 3;
     if(sscanf(params, "s[16] ", key) || strcmp(key,"set",true) != 0 && strcmp(key,"edit",true) != 0 && strcmp(key,"del",true) != 0 && strcmp(key,"info",true) != 0 && strcmp(key,"ticket",true) != 0) {
         if(selectPDSlots != 0 && PlayerInfo[playerid][pOnDuty])
-			return SendClientMessage(playerid, -1, " Ââåäèòå: /sradar [êëþ÷] | Êëþ÷è: set, edit, del, info");
+			return SendClientMessage(playerid, -1, " Введите: /sradar [ключ] | Ключи: set, edit, del, info");
 		else if(AdminLvl >= 3)
-		    return SendClientMessage(playerid, -1, " Ââåäèòå: /sradar del");
+		    return SendClientMessage(playerid, -1, " Введите: /sradar del");
 		else
-		    return SendClientMessage(playerid, -1, " Ââåäèòå: /sradar ticket");
+		    return SendClientMessage(playerid, -1, " Введите: /sradar ticket");
  	}
 	if(strcmp(key,"set",true) == 0)
 	{
 	    if(selectPDSlots == 0)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Âàì íåäîñòóïíà ýòà ôóíêöèÿ");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Вам недоступна эта функция");
 	    if(sscanf(params, "{s[16]} i s[128]", slimitValue, LocationName))
-	    	return SendClientMessage(playerid, -1, " Ââåäèòå: /sradar set [slimit] [íàçâàíèå ìåñòíîñòè]");
+	    	return SendClientMessage(playerid, -1, " Введите: /sradar set [slimit] [название местности]");
 		if(slimitValue<60 || slimitValue>100)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Îãðàíè÷åíèå ñêîðîñòè äîëæíî áûòü îò 60 äî 100 êì/÷");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Ограничение скорости должно быть от 60 до 100 км/ч");
         if(IsPlayerInAnyVehicle(playerid))
-	    	return SendClientMessage(playerid, 0xAFAFAF00, " Íåäîñòóïíî â òðàíñïîðòå");
+	    	return SendClientMessage(playerid, 0xAFAFAF00, " Недоступно в транспорте");
 		if(PlayerInfo[playerid][pRank] < 5 && PlayerInfo[playerid][pLeader] == 0)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Ôóíêöèÿ äîñòóïíà ñ 5 ðàíãà");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Функция доступна с 5 ранга");
 		if(getPlayerCity(playerid) != selectPDSlots-1)
-	    	return SendClientMessage(playerid, 0xAFAFAF00, " Íåäîñòóïíî âíå ñâîåé þðèñäèêöèè");
+	    	return SendClientMessage(playerid, 0xAFAFAF00, " Недоступно вне своей юрисдикции");
 		if(getNearestRadar(playerid, 50) != -1)
-	    	return SendClientMessage(playerid, 0xAFAFAF00, " Ðÿäîì óæå óñòàíîâëåíà êàìåðà");
+	    	return SendClientMessage(playerid, 0xAFAFAF00, " Рядом уже установлена камера");
 	    if(GetPlayerVirtualWorld(playerid) != 0 || GetPlayerInterior(playerid) != 0)
-	    	return SendClientMessage(playerid, 0xAFAFAF00, " Íåäîñòóïíî â ïîìåùåíèè");
+	    	return SendClientMessage(playerid, 0xAFAFAF00, " Недоступно в помещении");
         new freeRadarSlot = 15;
         for(new i=(selectPDSlots-1)*5; i < selectPDSlots*5; i++)
 		{
@@ -658,7 +658,7 @@ CMD:sradar(playerid, params[])
 			 }
 		}
 		if(freeRadarSlot == 15)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Âñå äîñòóïíûå êàìåðû óæå óñòàíîâëåíû");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Все доступные камеры уже установлены");
         SpeedRadarInfo[freeRadarSlot][srIsInstalled] = true;
 	 	SpeedRadarInfo[freeRadarSlot][srAuthorName] = GetName(playerid);
 	 	SpeedRadarInfo[freeRadarSlot][srAuthorRank] = (PlayerInfo[playerid][pLeader] == 0) ? GetRankName(PlayerInfo[playerid][pMember], PlayerInfo[playerid][pRank]) : GetLeaderName(PlayerInfo[playerid][pLeader]);
@@ -672,14 +672,14 @@ CMD:sradar(playerid, params[])
 	else if(strcmp(key,"edit",true) == 0)
 	{
 		if(selectPDSlots == 0)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Âàì íåäîñòóïíà ýòà ôóíêöèÿ");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Вам недоступна эта функция");
     	if(IsPlayerInAnyVehicle(playerid))
-	    	return SendClientMessage(playerid, 0xAFAFAF00, " Íåäîñòóïíî â òðàíñïîðòå");
+	    	return SendClientMessage(playerid, 0xAFAFAF00, " Недоступно в транспорте");
 	    new NearRadar = getNearestRadar(playerid, 3);
 	    if(NearRadar == -1)
-	        return SendClientMessage(playerid, 0xAFAFAF00, " Ðÿäîì ñ âàìè íåò êàìåð");
+	        return SendClientMessage(playerid, 0xAFAFAF00, " Рядом с вами нет камер");
 		if(strcmp(SpeedRadarInfo[NearRadar][srAuthorName],GetName(playerid)) != 0)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Íåëüçÿ ïåðåìåñòèòü ÷óæóþ êàìåðó");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Нельзя переместить чужую камеру");
 		if(NearRadar >= (selectPDSlots-1)*5 && NearRadar < selectPDSlots*5)
 		{
 			for(new i=0; i < 6; i++)
@@ -687,29 +687,29 @@ CMD:sradar(playerid, params[])
             DestroyDynamic3DTextLabel(SpeedRadarInfo[NearRadar][srText3DId]);
             CameraInstallId[playerid] = NearRadar;
             ApplyAnimation(playerid,"BOMBER","null",0.0,0,0,0,0,0);
-            SendClientMessage(playerid, -1, " Âûáåðèòå íîâîå ïîëîæåíèå äëÿ êàìåðû");
+            SendClientMessage(playerid, -1, " Выберите новое положение для камеры");
 			CameraInstallTimer[playerid] = SetTimerEx("RadarInstall", 500, true, "i", playerid);
 			GetPlayerPos(playerid, CameraInstallStartPoint[playerid][0], CameraInstallStartPoint[playerid][1], CameraInstallStartPoint[playerid][2]);
 		}
 		else
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Íåëüçÿ ïåðåìåñòèòü êàìåðó íå âàøåãî ÏÄ");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Нельзя переместить камеру не вашего ПД");
 	}
 	else if(strcmp(key,"del",true) == 0)
 	{
 		
 	    if(selectPDSlots == 0 && AdminLvl < 3)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Âàì íåäîñòóïíà ýòà ôóíêöèÿ");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Вам недоступна эта функция");
     	if(IsPlayerInAnyVehicle(playerid))
-	    	return SendClientMessage(playerid, 0xAFAFAF00, " Íåäîñòóïíî â òðàíñïîðòå");
+	    	return SendClientMessage(playerid, 0xAFAFAF00, " Недоступно в транспорте");
 	    new NearRadar = getNearestRadar(playerid, 20);
 	    if(NearRadar == -1)
-	        return SendClientMessage(playerid, 0xAFAFAF00, " Ðÿäîì ñ âàìè íåò êàìåð");
+	        return SendClientMessage(playerid, 0xAFAFAF00, " Рядом с вами нет камер");
 		if(strcmp(SpeedRadarInfo[NearRadar][srAuthorName],GetName(playerid)) != 0 && PlayerInfo[playerid][pLeader] == 0 && PlayerInfo[playerid][pRank] < 13 && AdminLvl < 3)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Óäàëåíèå êàìåð êîëëåã äîñòóïíî ñ 13 ðàíãà");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Удаление камер коллег доступно с 13 ранга");
 		if(NearRadar >= (selectPDSlots-1)*5 && NearRadar < selectPDSlots*5)
 		{
 		    new string[128];
-		    format(string,sizeof(string)," [Speed Cam] %s óäàëèë êàìåðó â ðàéîíå %s",GetName(playerid),SpeedRadarInfo[NearRadar][srLocation]);
+		    format(string,sizeof(string)," [Speed Cam] %s удалил камеру в районе %s",GetName(playerid),SpeedRadarInfo[NearRadar][srLocation]);
 			for(new i=0; i < 6; i++)
 			    DestroyDynamicObject(SpeedRadarInfo[NearRadar][srObjectId][i]);
             DestroyDynamic3DTextLabel(SpeedRadarInfo[NearRadar][srText3DId]);
@@ -717,27 +717,27 @@ CMD:sradar(playerid, params[])
 			SendRadioMessage(PlayerFrac, string);
 		}
 		else
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Íåëüçÿ óäàëèòü êàìåðó íå âàøåãî ÏÄ");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Нельзя удалить камеру не вашего ПД");
 	}
 	else if(strcmp(key,"info",true) == 0)
 	{
 	    if(selectPDSlots == 0)
-		    return SendClientMessage(playerid, 0xAFAFAF00, " Âàì íåäîñòóïíà ýòà ôóíêöèÿ");
-        ShowPlayerDialog(playerid, 2, DIALOG_STYLE_LIST, "Ñêîðîñòíîé ðàäàð", "[0] Íàðóøèòåëè çà ïîñëåäíèé ÷àñ\n[1] Íàðóøèòåëè çà òåêóùèå ñóòêè\n[2] Àêòèâíûå êàìåðû", "Âûáðàòü", "Çàêðûòü");
-        //ShowPlayerDialog(playerid, 3, DIALOG_STYLE_LIST, "Àêòèâíûå êàìåðû", "[0] Íàðóøèòåëè çà ïîñëåäíèé ÷àñ\n[2] Íàðóøèòåëè çà òåêóùèå ñóòêè\n[3] Àêòèâíûå êàìåðû", "Âûáðàòü", "Çàêðûòü");
+		    return SendClientMessage(playerid, 0xAFAFAF00, " Вам недоступна эта функция");
+        ShowPlayerDialog(playerid, 2, DIALOG_STYLE_LIST, "Скоростной радар", "[0] Нарушители за последний час\n[1] Нарушители за текущие сутки\n[2] Активные камеры", "Выбрать", "Закрыть");
+        //ShowPlayerDialog(playerid, 3, DIALOG_STYLE_LIST, "Активные камеры", "[0] Нарушители за последний час\n[2] Нарушители за текущие сутки\n[3] Активные камеры", "Выбрать", "Закрыть");
 	}
 	else if(strcmp(key,"ticket",true) == 0)
 	{
 		//SetPVarInt(playerid, "params", 0);
 		//GetPVarInt(playerid,"params");
         if(!SpeedRadarTicket(playerid))
-            SendClientMessage(playerid, 0xAFAFAF00, " Ó âàñ íåò íåîïëà÷åííûõ øòðàôîâ");
+            SendClientMessage(playerid, 0xAFAFAF00, " У вас нет неоплаченных штрафов");
 	}
 	return 1;
 }
 //=================================================================================
 
-// ÔÓÍÊÖÈÈ
+// ФУНКЦИИ
 stock GetPlayerSpeed(playerid)
 {
     new Float:ST[4];
@@ -789,63 +789,63 @@ stock getPlayerFraction(playerid)
 
 stock GetFractionName(fId)
 {
-	new frName[32] = "íåò";
+	new frName[32] = "нет";
 	switch (fId)
 	{
 		case 1: frName = "Police LV";
-		case 2: frName = "Áàíäà";
+		case 2: frName = "Банда";
 	}
 	return frName;
 }
 
 stock GetLeaderName(fId)
 {
-	new frName[32] = "íåò";
+	new frName[32] = "нет";
 	switch (fId)
 	{
-		case 1: frName = "Øåðèô";
-		case 2: frName = "Ïàäðå";
+		case 1: frName = "Шериф";
+		case 2: frName = "Падре";
 	}
 	return frName;
 }
 
 stock GetRankName(frac, rank)
 {
-	new rName[32] = "íåò";
+	new rName[32] = "нет";
 	switch (frac)
 	{
-		case 1,3,4: // Ïîëèöèÿ
+		case 1,3,4: // Полиция
 		{
 		    switch (rank)
 		    {
-		        case 1: rName = "Êàäåò";
-		        case 2: rName = "Îôèöåð";
-		        case 3: rName = "Ìë.ñåðæàíò";
-		        case 4: rName = "Ñåðæàíò";
-		        case 5: rName = "Ïðàïîðùèê";
-		        case 6: rName = "Ñò.Ïðàïîðùèê";
-		        case 7: rName = "Ìë.Ëåéòåíàíò";
-		        case 8: rName = "Ëåéòåíàíò";
-		        case 9: rName = "Ñò.Ëåéòåíàíò";
-		        case 10: rName = "Êàïèòàí";
-		        case 11: rName = "Ìàéîð";
-		        case 12: rName = "Ïîäïîëêîâíèê";
-		        case 13: rName = "Ïîëêîâíèê";
+		        case 1: rName = "Кадет";
+		        case 2: rName = "Офицер";
+		        case 3: rName = "Мл.сержант";
+		        case 4: rName = "Сержант";
+		        case 5: rName = "Прапорщик";
+		        case 6: rName = "Ст.Прапорщик";
+		        case 7: rName = "Мл.Лейтенант";
+		        case 8: rName = "Лейтенант";
+		        case 9: rName = "Ст.Лейтенант";
+		        case 10: rName = "Капитан";
+		        case 11: rName = "Майор";
+		        case 12: rName = "Подполковник";
+		        case 13: rName = "Полковник";
 		    }
 		}
-		case 2: // Áàíäû
+		case 2: // Банды
 		{
 		    switch (rank)
 		    {
-		        case 1: rName = "Ïåððî";
-		        case 2: rName = "Òèðàäîð";
-		        case 3: rName = "Ãåòòîð";
-		        case 4: rName = "Ëàñ Ãåððàñ";
-		        case 5: rName = "Ìèðàíäî";
-		        case 6: rName = "Ñàáèî";
-		        case 7: rName = "Èíâàñîð";
-		        case 8: rName = "Òåñîððåðî";
-		        case 9: rName = "Íåñòðî";
+		        case 1: rName = "Перро";
+		        case 2: rName = "Тирадор";
+		        case 3: rName = "Геттор";
+		        case 4: rName = "Лас Геррас";
+		        case 5: rName = "Мирандо";
+		        case 6: rName = "Сабио";
+		        case 7: rName = "Инвасор";
+		        case 8: rName = "Тесорреро";
+		        case 9: rName = "Нестро";
 		    }
 		}
 	}
@@ -929,7 +929,7 @@ stock updateRadarAuthorName(oldName[MAX_PLAYER_NAME+1], nextName[MAX_PLAYER_NAME
 				FracAuthorName = "SFPD";
 			else if(i < 15)
 				FracAuthorName = "LVPD";
-			format(Text3DString,sizeof(Text3DString),"{00A86B}Êàìåðà íà {FFFFFF}%i\n{00A86B}Ïîñòàâèë: {FFFFFF}%s / %s [%s]", SpeedRadarInfo[i][srSpeedLimit],FracAuthorName,nextName,SpeedRadarInfo[i][srAuthorRank]);
+			format(Text3DString,sizeof(Text3DString),"{00A86B}Камера на {FFFFFF}%i\n{00A86B}Поставил: {FFFFFF}%s / %s [%s]", SpeedRadarInfo[i][srSpeedLimit],FracAuthorName,nextName,SpeedRadarInfo[i][srAuthorRank]);
 			UpdateDynamic3DTextLabelText(SpeedRadarInfo[i][srText3DId], -1, Text3DString);
 			SpeedRadarInfo[i][srAuthorName] = nextName;
 		}
@@ -971,8 +971,8 @@ stock SpeedRadarTicketsPayDay()
 
 stock SpeedRadarTicket(playerid)
 {
-	static const fmt_str[] = "%s[%i] %s\t%i (+%i)\t%i âèðò\n";
-	new dialog_header[35] = "Àâòîìîáèëü\tÑêîðîñòü\tØòðàô\n",
+	static const fmt_str[] = "%s[%i] %s\t%i (+%i)\t%i вирт\n";
+	new dialog_header[35] = "Автомобиль\tСкорость\tШтраф\n",
     string[sizeof(dialog_header) + (sizeof(fmt_str) + (-2) + (-2 + 4) + (-2 + 32) + (-2 + 3) + (-2 + 3) + (-2 + 5)) * 32],
 	TicketsCount = 0;
     string = dialog_header;
@@ -982,7 +982,7 @@ stock SpeedRadarTicket(playerid)
 				format(string, sizeof(string), fmt_str, string, ++TicketsCount, VehicleNames[SpeedRadarTickets[i][srtCar]-400], SpeedRadarTickets[i][srtPlayerSpeed], SpeedRadarTickets[i][srtPlayerSpeed]-SpeedRadarTickets[i][srtSpeedLimit], 2000 * ((SpeedRadarTickets[i][srtPlayerSpeed]-SpeedRadarTickets[i][srtSpeedLimit]) / 10));
 	}
 	if(TicketsCount > 0) {
-	    ShowPlayerDialog(playerid, 4, DIALOG_STYLE_TABLIST_HEADERS, "Øòðàôû çà ïðåâûøåíèå ñêîðîñòè", string, "Îïëàòèòü", "Çàêðûòü");
+	    ShowPlayerDialog(playerid, 4, DIALOG_STYLE_TABLIST_HEADERS, "Штрафы за превышение скорости", string, "Оплатить", "Закрыть");
 	    string = "\0";
 	    return 1;
 	}
@@ -996,11 +996,11 @@ public RadarInstall(playerid)
 	GetPlayerPos(playerid, pX, pY, pZ);
 	if (GetPlayerDistanceFromPoint(playerid,CameraInstallStartPoint[playerid][0], CameraInstallStartPoint[playerid][1], CameraInstallStartPoint[playerid][2]) > 10 || IsPlayerInAnyVehicle(playerid))
 	{
-  		SendClientMessage(playerid, 0xAFAFAF00, " Óñòàíîâêà ðàäàðà ïðåðâàíà");
+  		SendClientMessage(playerid, 0xAFAFAF00, " Установка радара прервана");
   		if(SpeedRadarInfo[CameraInstallId[playerid]][srIsInstalled2])
 		{
 			new string[128];
-		    format(string,sizeof(string)," [Speed Cam] %s óäàëèë êàìåðó â ðàéîíå %s",GetName(playerid),SpeedRadarInfo[CameraInstallId[playerid]][srLocation]);
+		    format(string,sizeof(string)," [Speed Cam] %s удалил камеру в районе %s",GetName(playerid),SpeedRadarInfo[CameraInstallId[playerid]][srLocation]);
 			SendRadioMessage(getPlayerFraction(playerid), string);
 		}
     	KillTimer(CameraInstallTimer[playerid]);
@@ -1040,8 +1040,8 @@ public CameraPlace(playerid)
 	else if(cameraid < 15)
 		FracAuthorName = "LVPD";
 	format(slimitText,sizeof(slimitText),"%i", SpeedRadarInfo[cameraid][srSpeedLimit]);
-	format(Text3DString,sizeof(Text3DString),"{00A86B}Êàìåðà íà {FFFFFF}%i\n{00A86B}Ïîñòàâèë: {FFFFFF}%s / %s [%s]", SpeedRadarInfo[cameraid][srSpeedLimit],FracAuthorName,SpeedRadarInfo[cameraid][srAuthorName],SpeedRadarInfo[cameraid][srAuthorRank]);
-	// Ìàïïèíã
+	format(Text3DString,sizeof(Text3DString),"{00A86B}Камера на {FFFFFF}%i\n{00A86B}Поставил: {FFFFFF}%s / %s [%s]", SpeedRadarInfo[cameraid][srSpeedLimit],FracAuthorName,SpeedRadarInfo[cameraid][srAuthorName],SpeedRadarInfo[cameraid][srAuthorRank]);
+	// Маппинг
     tmpobjid = CreateDynamicObject(19967, RadarBasicX+0.028808, RadarBasicY-0.001709, RadarBasicZ+0.657765, 0.0, 0.0, 0.0+RadarBasicAngle, -1, -1, -1, 300.00, 300.00);
 	SetDynamicObjectMaterial(tmpobjid, 2, 1714, "cj_office", "white32", 0xFFE31E25);
 	SpeedRadarInfo[cameraid][srObjectId][0] = tmpobjid;
@@ -1064,7 +1064,7 @@ public CameraPlace(playerid)
 	SpeedRadarInfo[cameraid][srObjectId][5] = tmpobjid;
 	// 3DText
     SpeedRadarInfo[cameraid][srText3DId] = CreateDynamic3DTextLabel(Text3DString, -1,SpeedRadarInfo[cameraid][srX], SpeedRadarInfo[cameraid][srY], SpeedRadarInfo[cameraid][srZ],40);
-	// Äèíàìè÷åñêàÿ çîíà
+	// Динамическая зона
 	SpeedRadarInfo[cameraid][srNoticeZone] = CreateDynamicCircle(RadarBasicX, RadarBasicY, 80, 0, 0, -1);
 	SpeedRadarInfo[cameraid][srTicketZone] = CreateDynamicCircle(RadarBasicX, RadarBasicY, 20, 0, 0, -1);
     
@@ -1072,7 +1072,7 @@ public CameraPlace(playerid)
     {
 	    new UserFraction = PlayerInfo[playerid][pLeader] == 0 ? PlayerInfo[playerid][pMember] : PlayerInfo[playerid][pLeader],
 	    string[128];
-	    format(string,sizeof(string)," [Speed Cam] %s ñîçäàë êàìåðó íà %s êì/÷ â ìåñòíîñòè %s",GetName(playerid),slimitText,SpeedRadarInfo[cameraid][srLocation]);
+	    format(string,sizeof(string)," [Speed Cam] %s создал камеру на %s км/ч в местности %s",GetName(playerid),slimitText,SpeedRadarInfo[cameraid][srLocation]);
 	    SendRadioMessage(UserFraction, string);
 	    SpeedRadarInfo[cameraid][srIsInstalled2] = true;
     }
@@ -1087,7 +1087,7 @@ public OnPlayerEnterDynamicArea(playerid, areaid)
 		{
 			if(areaid == SpeedRadarInfo[i][srNoticeZone])
 			{
-			    new fmt_str[] = " Íà äàííîì ó÷àñòêå äîðîãè îãðàíè÷åíèå ñêîðîñòè {FF6600}%i{FFFFFF} êì/÷. Áóäü âíèìàòåëåí è ñíèçü ñêîðîñòü!",
+			    new fmt_str[] = " На данном участке дороги ограничение скорости {FF6600}%i{FFFFFF} км/ч. Будь внимателен и снизь скорость!",
 				string[sizeof(fmt_str) + (-2 + 3)];
 				format(string,sizeof(string),fmt_str,SpeedRadarInfo[i][srSpeedLimit]);
 	            SendClientMessage(playerid,-1,string);
@@ -1095,7 +1095,7 @@ public OnPlayerEnterDynamicArea(playerid, areaid)
 			else if(areaid == SpeedRadarInfo[i][srTicketZone])
 			{
 			    new PlayerFrac = getPlayerFraction(playerid);
-			    if(PlayerFrac == 1 || PlayerFrac == 3 || PlayerFrac == 4) // Ïðîâåðêà íà ãîñ. ôðàêöèþ. Èõ íå øòðàôóåì
+			    if(PlayerFrac == 1 || PlayerFrac == 3 || PlayerFrac == 4) // Проверка на гос. фракцию. Их не штрафуем
 			        return 1;
 				new PlayerSpeed = GetPlayerSpeed(playerid),
 				OverSpeed = PlayerSpeed - SpeedRadarInfo[i][srSpeedLimit] > 0 ? PlayerSpeed - SpeedRadarInfo[i][srSpeedLimit] : 0,
@@ -1103,7 +1103,7 @@ public OnPlayerEnterDynamicArea(playerid, areaid)
 				if(TicketAmount > 0)
 				{
 					new string[128],RadarPD;
-		            format(string,sizeof(string)," [Speed Cam] Êàìåðà â %s çàñåêëà íàðóøåíèå. Àâòîìîáèëü: %s. Âîäèòåëü: %s", SpeedRadarInfo[i][srLocation],VehicleNames[GetVehicleModel(GetPlayerVehicleID(playerid))-400],GetName(playerid));
+		            format(string,sizeof(string)," [Speed Cam] Камера в %s засекла нарушение. Автомобиль: %s. Водитель: %s", SpeedRadarInfo[i][srLocation],VehicleNames[GetVehicleModel(GetPlayerVehicleID(playerid))-400],GetName(playerid));
 		            if(i < 5)
 		            {
 		                RadarPD = 3; // id LSPD
@@ -1121,11 +1121,11 @@ public OnPlayerEnterDynamicArea(playerid, areaid)
 		            }
 		            SendRadioMessage(RadarPD, string);
 		            PlayerPlaySound(playerid, 1132, 0.0, 0.0, 0.0);
-		            format(string,sizeof(string)," SMS: Âàø àâòîìîáèëü íàðóøèë ñêîðîñòíîé ðåæèì íà %i êì/÷. Îòïðàâèòåëü: Ãîñóäàðñòâî", OverSpeed);
+		            format(string,sizeof(string)," SMS: Ваш автомобиль нарушил скоростной режим на %i км/ч. Отправитель: Государство", OverSpeed);
 					SendClientMessage(playerid, 0xFFFF0000, string);
-					format(string,sizeof(string)," SMS: Øòðàô â ðàçìåðå {FF6600}%i{FFFF00} âèðò áóäåò ñíÿò ñ âàøåãî áàíêîâñêîãî ñ÷¸òà. Îòïðàâèòåëü: Ãîñóäàðñòâî", TicketAmount);
+					format(string,sizeof(string)," SMS: Штраф в размере {FF6600}%i{FFFF00} вирт будет снят с вашего банковского счёта. Отправитель: Государство", TicketAmount);
 					SendClientMessage(playerid, 0xFFFF0000, string);
-					SendClientMessage(playerid, -1, " (( Äëÿ ïîëó÷åíèÿ äîïîëíèòåëüíîé èíôîðìàöèè è îïëàòû øòðàôà ââåäèòå: /sradar ticket ))");
+					SendClientMessage(playerid, -1, " (( Для получения дополнительной информации и оплаты штрафа введите: /sradar ticket ))");
 					SpeedRadarTickets[srTicketsIndex][srtPlayerName] = GetName(playerid);
 					SpeedRadarTickets[srTicketsIndex][srtCar] = GetVehicleModel(GetPlayerVehicleID(playerid));
 					SpeedRadarTickets[srTicketsIndex][srtSpeedLimit] = SpeedRadarInfo[i][srSpeedLimit];
