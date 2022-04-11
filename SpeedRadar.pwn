@@ -725,10 +725,8 @@ CMD:sradar(playerid, params[])
 	}
 	else if(strcmp(key,"ticket",true) == 0)
 	{
-		//SetPVarInt(playerid, "params", 0);
-		//GetPVarInt(playerid,"params");
-        if(!SpeedRadarTicket(playerid))
-            SendClientMessage(playerid, 0xAFAFAF00, " У вас нет неоплаченных штрафов");
+		if(!SpeedRadarTicket(playerid))
+		    SendClientMessage(playerid, 0xAFAFAF00, " У вас нет неоплаченных штрафов");
 	}
 	return 1;
 }
